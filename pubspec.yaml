@@ -1,0 +1,25 @@
+name: s3_client
+description: An S3-compatible storage client.
+version: 0.0.1
+repository: https://github.com/iv-re/dart-s3-client
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  clock: ^1.1.1
+  crypto: ^3.0.7
+  ctx: ^0.0.3
+  http: ^1.6.0
+  meta: ^1.18.3
+  sl: ^0.0.5
+  xml: ^7.0.1
+  http_parser: ^4.1.2
+
+dev_dependencies:
+  mocktail: ^1.0.5
+  pusk_lints: ^1.0.0
+  test: ^1.25.6
+
+false_secrets:
+  - /example/s3_client_example.dart
