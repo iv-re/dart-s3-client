@@ -32,6 +32,8 @@ class S3BaseClient {
     S3RequestBody? body,
     Context? ctx,
   }) async {
+    final effectiveCtx = ctx ?? Context.current;
+
     final url = _baseEndpoint.resolveS3Uri(
       usePathStyle: _usePathStyle,
       bucket: bucket,
@@ -56,7 +58,7 @@ class S3BaseClient {
       };
       reqLogger.debug(
         'request',
-        ctx: ctx,
+        ctx: effectiveCtx,
         attrs: [
           if (contentLength != null) .int('content_length', contentLength),
         ],
@@ -68,14 +70,14 @@ class S3BaseClient {
         S3RequestBodyBytes(:final bytes) => S3Request(
           method,
           url,
-          ctx: ctx,
+          ctx: effectiveCtx,
         )..bodyBytes = bytes,
         S3RequestBodyStream(:final contentLength) => S3StreamedRequest(
           method,
           url,
-          ctx: ctx,
+          ctx: effectiveCtx,
         )..contentLength = contentLength,
-        null => S3Request(method, url, ctx: ctx),
+        null => S3Request(method, url, ctx: effectiveCtx),
       };
 
       if (headers != null) req.headers.addAll(headers);
@@ -114,7 +116,7 @@ class S3BaseClient {
         final exception = S3Exception.fromError(s3Error);
         reqLogger?.warn(
           'response',
-          ctx: ctx,
+          ctx: effectiveCtx,
           attrs: [
             .int('status_code', response.statusCode),
             .int('duration_ms', stopwatch.elapsedMilliseconds),
@@ -127,7 +129,7 @@ class S3BaseClient {
 
       reqLogger?.debug(
         'response',
-        ctx: ctx,
+        ctx: effectiveCtx,
         attrs: [
           .int('status_code', response.statusCode),
           .int('duration_ms', stopwatch.elapsedMilliseconds),
@@ -141,12 +143,12 @@ class S3BaseClient {
       stopwatch.stop();
 
       final effectiveError = error is http.RequestAbortedException
-          ? (ctx?.error ?? error)
+          ? (effectiveCtx.error ?? error)
           : error;
 
       reqLogger?.error(
         'response',
-        ctx: ctx,
+        ctx: effectiveCtx,
         attrs: [
           .int('duration_ms', stopwatch.elapsedMilliseconds),
           .error(effectiveError),
@@ -166,6 +168,8 @@ class S3BaseClient {
     Map<String, String>? queryParameters,
     Context? ctx,
   }) {
+    final effectiveCtx = ctx ?? Context.current;
+
     final url = _baseEndpoint.resolveS3Uri(
       usePathStyle: _usePathStyle,
       bucket: bucket,
@@ -175,7 +179,7 @@ class S3BaseClient {
 
     _logger?.debug(
       'presign',
-      ctx: ctx,
+      ctx: effectiveCtx,
       attrs: [
         .string('method', method),
         .string('bucket', bucket),

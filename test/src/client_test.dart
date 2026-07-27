@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:ctx/ctx.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:s3_client/s3_client.dart';
@@ -1083,5 +1084,24 @@ void main() {
         expect(pages.length, 2);
       },
     );
+
+    test('uses Context.current when ctx parameter is null', () async {
+      final mockClient = MockHttpClient();
+      final client = defaultClient(mockClient);
+
+      when(() => mockClient.send(any())).thenAnswer((invocation) async {
+        final req = invocation.positionalArguments[0] as S3Request;
+        expect(req.abortTrigger, isNotNull);
+        return emptyResponse();
+      });
+
+      final (ctx, cancel) = const Context.empty().withCancel();
+
+      await ctx.run(() async {
+        await client.headObject(bucket: 'bucket', key: 'key');
+      });
+
+      cancel();
+    });
   });
 }
