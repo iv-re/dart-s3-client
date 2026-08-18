@@ -2,15 +2,23 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 
 /// AWS credentials used to sign S3 requests.
-class S3Credentials {
-  /// Can represent temporary credentials (if [sessionToken] is set) or
-  /// anonymous credentials (if keys are null).
-  const S3Credentials({
-    this.accessKeyId,
-    this.secretAccessKey,
-    this.sessionToken,
-    this.expires,
-  }) : assert(
+///
+/// Can represent temporary credentials (if [sessionToken] is set) or
+/// anonymous credentials (if keys are null).
+class const S3Credentials({
+  /// AWS Access Key ID. Null for anonymous access.
+  final String? accessKeyId,
+
+  /// AWS Secret Access Key. Null for anonymous access.
+  final String? secretAccessKey,
+
+  /// Temporary AWS Session Token (for STS).
+  final String? sessionToken,
+
+  /// Expiry time of temporary credentials.
+  final DateTime? expires,
+}) {
+  this : assert(
          (accessKeyId == null) == (secretAccessKey == null),
          'accessKeyId and secretAccessKey must be provided together '
          '(or both be null).',
@@ -36,18 +44,6 @@ class S3Credentials {
          expires == null || sessionToken != null,
          'expires should only be provided along with a temporary sessionToken.',
        );
-
-  /// AWS Access Key ID. Null for anonymous access.
-  final String? accessKeyId;
-
-  /// AWS Secret Access Key. Null for anonymous access.
-  final String? secretAccessKey;
-
-  /// Temporary AWS Session Token (for STS).
-  final String? sessionToken;
-
-  /// Expiry time of temporary credentials.
-  final DateTime? expires;
 
   /// Whether these credentials are anonymous (unsigned requests).
   bool get isAnonymous {
@@ -81,18 +77,16 @@ abstract interface class S3CredentialsProvider {
   FutureOr<S3Credentials> retrieve();
 }
 
-class S3StaticCredentialsProvider implements S3CredentialsProvider {
-  S3StaticCredentialsProvider({
-    String? accessKeyId,
-    String? secretAccessKey,
-    String? sessionToken,
-  }) : _value = S3Credentials(
-         accessKeyId: accessKeyId,
-         secretAccessKey: secretAccessKey,
-         sessionToken: sessionToken,
-       );
-
-  final S3Credentials _value;
+class S3StaticCredentialsProvider({
+  String? accessKeyId,
+  String? secretAccessKey,
+  String? sessionToken,
+}) implements S3CredentialsProvider {
+  final S3Credentials _value = S3Credentials(
+    accessKeyId: accessKeyId,
+    secretAccessKey: secretAccessKey,
+    sessionToken: sessionToken,
+  );
 
   @override
   FutureOr<S3Credentials> retrieve() {
@@ -100,9 +94,7 @@ class S3StaticCredentialsProvider implements S3CredentialsProvider {
   }
 }
 
-class S3AnonymousCredentialsProvider implements S3CredentialsProvider {
-  const S3AnonymousCredentialsProvider();
-
+class const S3AnonymousCredentialsProvider() implements S3CredentialsProvider {
   @override
   FutureOr<S3Credentials> retrieve() {
     return const S3Credentials();
@@ -110,17 +102,11 @@ class S3AnonymousCredentialsProvider implements S3CredentialsProvider {
 }
 
 /// Caching provider that wraps and caches another [S3CredentialsProvider].
-class S3CachedCredentialsProvider implements S3CredentialsProvider {
-  S3CachedCredentialsProvider(
-    this._provider, {
-    this.refreshGracePeriod = const Duration(seconds: 15),
-  });
-
-  final S3CredentialsProvider _provider;
-
+class S3CachedCredentialsProvider(
+  final S3CredentialsProvider _provider, {
   /// Time buffer before expiration to trigger early refresh.
-  final Duration refreshGracePeriod;
-
+  final Duration refreshGracePeriod = const Duration(seconds: 15),
+}) implements S3CredentialsProvider {
   S3Credentials? _cached;
   FutureOr<S3Credentials>? _retrieveFuture;
 

@@ -6,20 +6,20 @@ import 'package:meta/meta.dart';
 
 typedef S3BaseRequest = http.BaseRequest;
 
-class S3Request extends http.Request with http.Abortable {
-  S3Request(super.method, super.url, {this._ctx});
-
-  final Context? _ctx;
-
+class S3Request(
+  super.method,
+  super.url, {
+  final Context? _ctx,
+}) extends http.Request with http.Abortable {
   @override
   Future<void>? get abortTrigger => _ctx?.done;
 }
 
-class S3StreamedRequest extends http.StreamedRequest with http.Abortable {
-  S3StreamedRequest(super.method, super.url, {this._ctx});
-
-  final Context? _ctx;
-
+class S3StreamedRequest(
+  super.method,
+  super.url, {
+  final Context? _ctx,
+}) extends http.StreamedRequest with http.Abortable {
   @override
   Future<void>? get abortTrigger => _ctx?.done;
 }
@@ -35,18 +35,12 @@ sealed class S3RequestBody {
   }) = S3RequestBodyStream;
 }
 
-class S3RequestBodyBytes implements S3RequestBody {
-  const S3RequestBodyBytes(this.bytes);
+class const S3RequestBodyBytes(final Uint8List bytes) implements S3RequestBody;
 
-  final Uint8List bytes;
-}
-
-class S3RequestBodyStream implements S3RequestBody {
-  const S3RequestBodyStream(this.stream, {this.contentLength});
-
-  final Stream<Uint8List> stream;
-  final int? contentLength;
-}
+class const S3RequestBodyStream(
+  final Stream<Uint8List> stream, {
+  final int? contentLength,
+}) implements S3RequestBody;
 
 @internal
 abstract final class S3HttpHeaders {
