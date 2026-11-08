@@ -79,6 +79,7 @@ abstract final class S3HttpHeaders {
   static const acceptRanges = 'accept-ranges';
   static const acl = 'x-amz-acl';
   static const tagging = 'x-amz-tagging';
+  static const taggingDirective = 'x-amz-tagging-directive';
   static const storageClass = 'x-amz-storage-class';
   static const deleteMarker = 'x-amz-delete-marker';
   static const restore = 'x-amz-restore';

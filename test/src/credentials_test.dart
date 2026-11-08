@@ -201,6 +201,39 @@ void main() {
       verify(inner.retrieve).called(2);
     });
 
+    test('cached provider reuses credentials that are not expiring', () async {
+      final inner = MockCredentialsProvider();
+      final creds = S3Credentials(
+        accessKeyId: 'key',
+        secretAccessKey: 'sec',
+        sessionToken: 'tok',
+        expires: DateTime.now().add(const Duration(hours: 1)),
+      );
+      when(inner.retrieve).thenAnswer((_) => Future.value(creds));
+
+      final cached = S3CredentialsProvider.cached(inner);
+
+      await cached.retrieve();
+      await cached.retrieve();
+
+      verify(inner.retrieve).called(1);
+    });
+
+    test('cached provider recovers after a synchronous failure', () async {
+      final inner = MockCredentialsProvider();
+      final cached = S3CredentialsProvider.cached(inner);
+
+      when(inner.retrieve).thenThrow(StateError('transient'));
+      await expectLater(Future.sync(cached.retrieve), throwsStateError);
+
+      when(inner.retrieve).thenReturn(
+        const S3Credentials(accessKeyId: 'key', secretAccessKey: 'secret'),
+      );
+      final credentials = await cached.retrieve();
+
+      expect(credentials.accessKeyId, 'key');
+    });
+
     test('cached provider invalidate clears cache', () async {
       final inner = MockCredentialsProvider();
       const creds = S3Credentials(accessKeyId: 'key', secretAccessKey: 'sec');

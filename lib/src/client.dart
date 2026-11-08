@@ -10,6 +10,7 @@ import 'package:s3_client/src/error.dart';
 import 'package:s3_client/src/model.dart';
 import 'package:s3_client/src/request.dart';
 import 'package:s3_client/src/sign/signer.dart';
+import 'package:xml/xml.dart';
 
 class S3Client extends S3BaseClient {
   S3Client({
@@ -103,11 +104,18 @@ class S3Client extends S3BaseClient {
     required String key,
     required Stream<Uint8List> body,
     String? contentType,
+    String? contentDisposition,
+    String? contentEncoding,
+    String? contentLanguage,
+    String? cacheControl,
+    DateTime? expires,
     int? contentLength,
     Map<String, String>? metadata,
     S3ObjectAcl? acl,
     Map<String, String>? tagging,
     String? storageClass,
+    String? ifMatch,
+    String? ifNoneMatch,
     Context? ctx,
   }) async {
     final response = await request(
@@ -116,10 +124,19 @@ class S3Client extends S3BaseClient {
       key: key,
       headers: {
         S3HttpHeaders.contentType: ?contentType,
+        S3HttpHeaders.contentDisposition: ?contentDisposition,
+        S3HttpHeaders.contentEncoding: ?contentEncoding,
+        S3HttpHeaders.contentLanguage: ?contentLanguage,
+        S3HttpHeaders.cacheControl: ?cacheControl,
+        S3HttpHeaders.expires: ?expires != null
+            ? http.formatHttpDate(expires)
+            : null,
         ...?metadata?.map((k, v) => MapEntry('x-amz-meta-$k', v)),
         S3HttpHeaders.acl: ?acl?.headerValue,
         S3HttpHeaders.storageClass: ?storageClass,
         S3HttpHeaders.tagging: ?tagging?.toS3TaggingHeader(),
+        S3HttpHeaders.ifMatch: ?ifMatch,
+        S3HttpHeaders.ifNoneMatch: ?ifNoneMatch,
       },
       body: .stream(body, contentLength: contentLength),
       ctx: ctx,
@@ -191,9 +208,15 @@ class S3Client extends S3BaseClient {
     required String bucket,
     required String key,
     required String copySource,
+    String? copySourceVersionId,
     S3MetadataDirective metadataDirective = .copy,
     Map<String, String>? metadata,
     String? contentType,
+    String? contentDisposition,
+    String? contentEncoding,
+    String? contentLanguage,
+    String? cacheControl,
+    DateTime? expires,
     String? copySourceIfMatch,
     String? copySourceIfNoneMatch,
     DateTime? copySourceIfModifiedSince,
@@ -208,8 +231,18 @@ class S3Client extends S3BaseClient {
       bucket: bucket,
       key: key,
       headers: {
-        S3HttpHeaders.copySource: _encodeCopySource(copySource),
+        S3HttpHeaders.copySource: _encodeCopySource(
+          copySource,
+          versionId: copySourceVersionId,
+        ),
         S3HttpHeaders.contentType: ?contentType,
+        S3HttpHeaders.contentDisposition: ?contentDisposition,
+        S3HttpHeaders.contentEncoding: ?contentEncoding,
+        S3HttpHeaders.contentLanguage: ?contentLanguage,
+        S3HttpHeaders.cacheControl: ?cacheControl,
+        S3HttpHeaders.expires: ?expires != null
+            ? http.formatHttpDate(expires)
+            : null,
         S3HttpHeaders.copySourceIfMatch: ?copySourceIfMatch,
         S3HttpHeaders.copySourceIfNoneMatch: ?copySourceIfNoneMatch,
         S3HttpHeaders.copySourceIfModifiedSince:
@@ -227,11 +260,14 @@ class S3Client extends S3BaseClient {
         S3HttpHeaders.acl: ?acl?.headerValue,
         S3HttpHeaders.storageClass: ?storageClass,
         S3HttpHeaders.tagging: ?tagging?.toS3TaggingHeader(),
+        if (tagging != null) S3HttpHeaders.taggingDirective: 'REPLACE',
       },
       ctx: ctx,
     );
 
     final body = await response.stream.bytesToString();
+    _throwIfEmbeddedError(body);
+
     return S3CopyObjectResult.fromXmlDocument(
       body,
       versionId: response.headers[S3HttpHeaders.versionId],
@@ -385,6 +421,11 @@ class S3Client extends S3BaseClient {
     required String bucket,
     required String key,
     String? contentType,
+    String? contentDisposition,
+    String? contentEncoding,
+    String? contentLanguage,
+    String? cacheControl,
+    DateTime? expires,
     Map<String, String>? metadata,
     S3ObjectAcl? acl,
     Map<String, String>? tagging,
@@ -398,6 +439,13 @@ class S3Client extends S3BaseClient {
       queryParameters: {'uploads': ''},
       headers: {
         S3HttpHeaders.contentType: ?contentType,
+        S3HttpHeaders.contentDisposition: ?contentDisposition,
+        S3HttpHeaders.contentEncoding: ?contentEncoding,
+        S3HttpHeaders.contentLanguage: ?contentLanguage,
+        S3HttpHeaders.cacheControl: ?cacheControl,
+        S3HttpHeaders.expires: ?expires != null
+            ? http.formatHttpDate(expires)
+            : null,
         ...?metadata?.map((k, v) => MapEntry('x-amz-meta-$k', v)),
         S3HttpHeaders.acl: ?acl?.headerValue,
         S3HttpHeaders.storageClass: ?storageClass,
@@ -440,6 +488,7 @@ class S3Client extends S3BaseClient {
     required String uploadId,
     required int partNumber,
     required String copySource,
+    String? copySourceVersionId,
     String? copySourceRange,
     String? copySourceIfMatch,
     String? copySourceIfNoneMatch,
@@ -456,7 +505,10 @@ class S3Client extends S3BaseClient {
         'uploadId': uploadId,
       },
       headers: {
-        S3HttpHeaders.copySource: _encodeCopySource(copySource),
+        S3HttpHeaders.copySource: _encodeCopySource(
+          copySource,
+          versionId: copySourceVersionId,
+        ),
         S3HttpHeaders.copySourceRange: ?copySourceRange,
         S3HttpHeaders.copySourceIfMatch: ?copySourceIfMatch,
         S3HttpHeaders.copySourceIfNoneMatch: ?copySourceIfNoneMatch,
@@ -473,6 +525,8 @@ class S3Client extends S3BaseClient {
     );
 
     final body = await response.stream.bytesToString();
+    _throwIfEmbeddedError(body);
+
     return S3CopyPartResult.fromXmlDocument(body);
   }
 
@@ -481,6 +535,8 @@ class S3Client extends S3BaseClient {
     required String key,
     required String uploadId,
     required S3CompleteMultipartUpload multipartUpload,
+    String? ifMatch,
+    String? ifNoneMatch,
     Context? ctx,
   }) async {
     final response = await request(
@@ -488,6 +544,10 @@ class S3Client extends S3BaseClient {
       bucket: bucket,
       key: key,
       queryParameters: {'uploadId': uploadId},
+      headers: {
+        S3HttpHeaders.ifMatch: ?ifMatch,
+        S3HttpHeaders.ifNoneMatch: ?ifNoneMatch,
+      },
       body: S3RequestBody.bytes(
         Uint8List.fromList(utf8.encode(multipartUpload.toXml().toXmlString())),
       ),
@@ -495,6 +555,8 @@ class S3Client extends S3BaseClient {
     );
 
     final body = await response.stream.bytesToString();
+    _throwIfEmbeddedError(body);
+
     final versionId = response.headers[S3HttpHeaders.versionId];
 
     return S3CompleteMultipartUploadResult.fromXmlDocument(
@@ -606,6 +668,20 @@ extension on Map<String, String> {
   }
 }
 
-String _encodeCopySource(String copySource) {
-  return copySource.split('/').map(Uri.encodeComponent).join('/');
+String _encodeCopySource(String copySource, {String? versionId}) {
+  final encoded = copySource.split('/').map(Uri.encodeComponent).join('/');
+  if (versionId == null) return encoded;
+
+  return '$encoded?versionId=${Uri.encodeComponent(versionId)}';
+}
+
+/// Throws the error S3 reported in the body of a `200 OK` response.
+///
+/// Copy and complete multipart upload requests can fail after S3 has already
+/// sent a successful status.
+void _throwIfEmbeddedError(String body) {
+  final root = XmlDocument.parse(body).rootElement;
+  if (root.name.local == 'Error') {
+    throw S3Exception.fromError(S3Error.fromXml(root));
+  }
 }

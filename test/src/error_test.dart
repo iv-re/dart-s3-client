@@ -32,6 +32,16 @@ void main() {
       expect(exc.message, equals('The specified key does not exist.'));
     });
 
+    test('creates correct subclass for ConditionalRequestConflict', () {
+      final exc = S3Exception.fromCode(
+        'ConditionalRequestConflict',
+        'A conflicting operation occurred.',
+      );
+      expect(exc, isA<S3ConditionalRequestConflictException>());
+      expect(exc.code, equals('ConditionalRequestConflict'));
+      expect(exc.message, equals('A conflicting operation occurred.'));
+    });
+
     test('falls back to S3UnknownException for unmapped code', () {
       final exc = S3Exception.fromCode('SomeNewError', 'A new error occurred.');
       expect(exc, isA<S3UnknownException>());

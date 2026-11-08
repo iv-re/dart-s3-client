@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ctx/ctx.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
@@ -85,14 +87,12 @@ class S3BaseClient {
 
       final responseFuture = _httpClient.send(req);
 
+      // Closing the sink only completes once the client has consumed the body,
+      // which never happens if the connection fails, so it can't be awaited.
       if (body case S3RequestBodyStream(:final stream)) {
         req as S3StreamedRequest;
 
-        try {
-          await req.sink.addStream(stream);
-        } finally {
-          await req.sink.close();
-        }
+        req.sink.addStream(stream).whenComplete(req.sink.close).ignore();
       }
 
       final response = await responseFuture;
@@ -106,7 +106,9 @@ class S3BaseClient {
           s3Error = S3Error.fromXmlDocument(bodyString);
         } catch (_) {
           s3Error = S3Error(
-            code: response.statusCode.toString(),
+            code: bodyString.isEmpty
+                ? _emptyBodyErrorCode(response.statusCode)
+                : response.statusCode.toString(),
             message: bodyString.isNotEmpty
                 ? bodyString
                 : (response.reasonPhrase ?? 'Unknown S3 error'),
@@ -167,7 +169,7 @@ class S3BaseClient {
     Duration expires = const Duration(minutes: 15),
     Map<String, String>? queryParameters,
     Context? ctx,
-  }) {
+  }) async {
     final effectiveCtx = ctx ?? Context.current;
 
     final url = _baseEndpoint.resolveS3Uri(
@@ -205,17 +207,39 @@ extension on Uri {
 
     final keySegments = key?.split('/');
 
-    if (usePathStyle) {
-      return replace(
-        pathSegments: [...pathSegments, bucket, ...?keySegments],
-        queryParameters: effectiveQueryParams,
-      );
-    } else {
-      return replace(
-        host: '$bucket.$host',
-        pathSegments: keySegments,
-        queryParameters: effectiveQueryParams,
+    // `Uri` silently resolves these, which would address a different object.
+    if (keySegments != null &&
+        keySegments.any((segment) => segment == '.' || segment == '..')) {
+      throw ArgumentError.value(
+        key,
+        'key',
+        "must not contain '.' or '..' path segments",
       );
     }
+
+    final uri = usePathStyle
+        ? replace(
+            pathSegments: [...pathSegments, bucket, ...?keySegments],
+            queryParameters: effectiveQueryParams,
+          )
+        : replace(
+            host: '$bucket.$host',
+            pathSegments: keySegments,
+            queryParameters: effectiveQueryParams,
+          );
+
+    // `Uri` leaves `+` as is, but S3 can decode it in a path as a space.
+    return uri.replace(path: uri.path.replaceAll('+', '%2B'));
   }
+}
+
+/// Returns the S3 error code for an error response without a body, such as a
+/// response to a `HEAD` request.
+String _emptyBodyErrorCode(int statusCode) {
+  return switch (statusCode) {
+    304 => 'NotModified',
+    403 => 'AccessDenied',
+    412 => 'PreconditionFailed',
+    _ => statusCode.toString(),
+  };
 }

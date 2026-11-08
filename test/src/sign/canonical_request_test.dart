@@ -110,12 +110,11 @@ void main() {
     });
 
     test('does not double-encode already percent-encoded values', () {
+      final url = Uri.parse('https://example.com/path?key=%2Fvalue');
       final req = CanonicalRequest(
         method: 'GET',
-        url: Uri.parse('https://example.com/path?key=%2Fvalue'),
-        queryParameters: {
-          'key': ['/value'],
-        },
+        url: url,
+        queryParameters: url.queryParametersAll,
         headers: {'Host': 'example.com'},
         payloadHash: 'UNSIGNED-PAYLOAD',
       );

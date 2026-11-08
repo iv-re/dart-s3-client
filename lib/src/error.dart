@@ -24,6 +24,9 @@ abstract class const S3Exception({
       'BucketAlreadyExists' => S3BucketAlreadyExistsException(message),
       'BucketAlreadyOwnedByYou' => S3BucketAlreadyOwnedByYouException(message),
       'BucketNotEmpty' => S3BucketNotEmptyException(message),
+      'ConditionalRequestConflict' => S3ConditionalRequestConflictException(
+        message,
+      ),
       'CredentialsNotSupported' => S3CredentialsNotSupportedException(message),
       'CrossLocationLoggingProhibited' =>
         S3CrossLocationLoggingProhibitedException(message),
@@ -89,6 +92,7 @@ abstract class const S3Exception({
       'NoSuchUpload' => S3NoSuchUploadException(message),
       'NoSuchVersion' => S3NoSuchVersionException(message),
       'NotImplemented' => S3NotImplementedException(message),
+      'NotModified' => S3NotModifiedException(message),
       'NotSignedUp' => S3NotSignedUpException(message),
       'OperationAborted' => S3OperationAbortedException(message),
       'PermanentRedirect' => S3PermanentRedirectException(message),
@@ -187,6 +191,14 @@ class const S3BucketAlreadyOwnedByYouException(
 /// The bucket you tried to delete is not empty.
 class const S3BucketNotEmptyException(String message) extends S3Exception {
   this : super(code: 'BucketNotEmpty', message: message);
+}
+
+/// A conflicting operation occurred during a conditional request. Retry the
+/// request.
+class const S3ConditionalRequestConflictException(
+  String message,
+) extends S3Exception {
+  this : super(code: 'ConditionalRequestConflict', message: message);
 }
 
 /// This request does not support credentials.
@@ -497,6 +509,11 @@ class const S3NoSuchVersionException(String message) extends S3Exception {
 /// A header you provided implies functionality that is not implemented.
 class const S3NotImplementedException(String message) extends S3Exception {
   this : super(code: 'NotImplemented', message: message);
+}
+
+/// The object has not been modified since the time specified in the request.
+class const S3NotModifiedException(String message) extends S3Exception {
+  this : super(code: 'NotModified', message: message);
 }
 
 /// Your account is not signed up for the Amazon S3 service.

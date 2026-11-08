@@ -97,7 +97,7 @@ class const S3Object({
       key: element.str('Key'),
       eTag: S3Etag.parse(element.str('ETag')),
       size: element.integer('Size'),
-      storageClass: element.str('StorageClass'),
+      storageClass: element.strOrNull('StorageClass') ?? 'STANDARD',
       lastModified: element.dateTime('LastModified'),
       owner: ownerElement != null ? S3Owner.fromXml(ownerElement) : null,
     );
@@ -214,7 +214,7 @@ class const S3Error({
   factory S3Error.fromXml(XmlElement element) {
     return S3Error(
       code: element.str('Code'),
-      message: element.str('Message'),
+      message: element.strOrNull('Message') ?? '',
       key: element.strOrNull('Key'),
       versionId: element.strOrNull('VersionId'),
       requestId: element.strOrNull('RequestId'),
@@ -282,9 +282,7 @@ class const S3HeadObjectResult({
       contentDisposition: headers[S3HttpHeaders.contentDisposition],
       contentEncoding: headers[S3HttpHeaders.contentEncoding],
       contentLanguage: headers[S3HttpHeaders.contentLanguage],
-      expires: headers[S3HttpHeaders.expires] != null
-          ? http.parseHttpDate(headers[S3HttpHeaders.expires]!)
-          : null,
+      expires: _tryParseHttpDate(headers[S3HttpHeaders.expires]),
       acceptRanges: headers[S3HttpHeaders.acceptRanges],
     );
   }
@@ -605,7 +603,7 @@ class const S3ListPartsResult({
       bucket: element.str('Bucket'),
       key: element.str('Key'),
       uploadId: element.str('UploadId'),
-      partNumberMarker: element.integer('PartNumberMarker'),
+      partNumberMarker: element.integerOrNull('PartNumberMarker') ?? 0,
       nextPartNumberMarker: element.integerOrNull('NextPartNumberMarker'),
       maxParts: element.integer('MaxParts'),
       isTruncated: element.boolean('IsTruncated'),
@@ -838,7 +836,7 @@ class const S3ObjectVersion({
       lastModified: element.dateTime('LastModified'),
       eTag: S3Etag.parse(element.str('ETag')),
       size: element.integer('Size'),
-      storageClass: element.str('StorageClass'),
+      storageClass: element.strOrNull('StorageClass') ?? 'STANDARD',
       owner: ownerElement != null ? S3Owner.fromXml(ownerElement) : null,
     );
   }
@@ -983,6 +981,17 @@ class const S3ListObjectVersionsResult({
       },
     );
     return builder.buildDocument();
+  }
+}
+
+/// S3 stores `Expires` as an arbitrary string, so it may not be a valid date.
+DateTime? _tryParseHttpDate(String? value) {
+  if (value == null) return null;
+
+  try {
+    return http.parseHttpDate(value);
+  } on FormatException {
+    return null;
   }
 }
 

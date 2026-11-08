@@ -156,24 +156,51 @@ void main() {
       },
     );
 
-    test(
-      'respects existing x-amz-content-sha256 header',
-      () async {
-        const credentials = S3Credentials(
+    group('AWS Signature Version 4 documentation examples', () {
+      final documentedTime = DateTime.utc(2013, 5, 24);
+      final documentedSigner = S3Signer(
+        credentialsProvider: S3CredentialsProvider.static(
           accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
           secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-        );
-        when(
-          mockCredentialsProvider.retrieve,
-        ).thenAnswer((_) => Future.value(credentials));
-        final req = S3Request('PUT', Uri.parse('https://example.com/'));
-        req.headers['x-amz-content-sha256'] = 'UNSIGNED-PAYLOAD';
+        ),
+        region: 'us-east-1',
+      );
 
-        await signer.sign(req);
+      test('signs GET object with a Range header', () {
+        return withClock(Clock.fixed(documentedTime), () async {
+          final req = S3Request(
+            'GET',
+            Uri.parse('https://examplebucket.s3.amazonaws.com/test.txt'),
+          )..headers['Range'] = 'bytes=0-9';
 
-        expect(req.headers['x-amz-content-sha256'], 'UNSIGNED-PAYLOAD');
-      },
-    );
+          await documentedSigner.sign(req);
+
+          expect(
+            req.headers['authorization'],
+            'AWS4-HMAC-SHA256 '
+            'Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request, '
+            'SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, '
+            'Signature='
+            'f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41',
+          );
+        });
+      });
+
+      test('presigns GET object', () {
+        return withClock(Clock.fixed(documentedTime), () async {
+          final url = await documentedSigner.presign(
+            'GET',
+            Uri.parse('https://examplebucket.s3.amazonaws.com/test.txt'),
+            expires: const Duration(days: 1),
+          );
+
+          expect(
+            url.queryParameters['X-Amz-Signature'],
+            'aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404',
+          );
+        });
+      });
+    });
 
     testWithClock(
       'presigns URL correctly',

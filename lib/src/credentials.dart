@@ -124,17 +124,17 @@ class S3CachedCredentialsProvider(
       }
     }
 
-    return _retrieveFuture ??= _retrieveAndCache();
+    // Cleared in `whenComplete` so that it always runs after this assignment,
+    // even if the provider throws synchronously.
+    return _retrieveFuture ??= _retrieveAndCache().whenComplete(() {
+      _retrieveFuture = null;
+    });
   }
 
-  FutureOr<S3Credentials> _retrieveAndCache() async {
-    try {
-      final credentials = await _provider.retrieve();
-      _cached = credentials;
-      return credentials;
-    } finally {
-      _retrieveFuture = null;
-    }
+  Future<S3Credentials> _retrieveAndCache() async {
+    final credentials = await _provider.retrieve();
+    _cached = credentials;
+    return credentials;
   }
 
   /// Invalidate cache.
